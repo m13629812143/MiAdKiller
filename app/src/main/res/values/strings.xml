@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MiAdKiller</string>
+    <string name="app_description">小米手机广告管理工具</string>
+
+    <!-- 导航 -->
+    <string name="nav_home">首页</string>
+    <string name="nav_ad_switch">广告开关</string>
+    <string name="nav_freeze">冻结管理</string>
+    <string name="nav_autostart">自启管理</string>
+    <string name="nav_permission">权限管理</string>
+    <string name="nav_hosts">Hosts屏蔽</string>
+
+    <!-- 状态 -->
+    <string name="status_connected">Shizuku已连接</string>
+    <string name="status_disconnected">Shizuku未连接</string>
+    <string name="status_frozen">已冻结</string>
+    <string name="status_active">运行中</string>
+
+    <!-- 操作 -->
+    <string name="action_one_click">一键关闭广告</string>
+    <string name="action_freeze">冻结</string>
+    <string name="action_unfreeze">解冻</string>
+    <string name="action_apply_hosts">应用Hosts规则</string>
+</resources>
