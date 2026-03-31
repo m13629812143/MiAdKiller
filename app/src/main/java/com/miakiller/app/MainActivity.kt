@@ -18,11 +18,9 @@ import com.miakiller.app.ui.theme.MiAdKillerTheme
 import com.miakiller.app.viewmodel.MainViewModel
 
 class MainActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
         setContent {
             MiAdKillerTheme {
                 MiAdKillerNavHost()
@@ -31,9 +29,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/**
- * 应用导航路由
- */
 object Routes {
     const val HOME = "home"
     const val AD_SWITCH = "ad_switch"
@@ -41,6 +36,7 @@ object Routes {
     const val AUTO_START = "auto_start"
     const val PERMISSION = "permission"
     const val HOSTS = "hosts"
+    const val LOG = "log"
 }
 
 @Composable
@@ -61,43 +57,27 @@ fun MiAdKillerNavHost() {
                     onNavigateToFreeze = { navController.navigate(Routes.FREEZE) },
                     onNavigateToAutoStart = { navController.navigate(Routes.AUTO_START) },
                     onNavigateToPermission = { navController.navigate(Routes.PERMISSION) },
-                    onNavigateToHosts = { navController.navigate(Routes.HOSTS) }
+                    onNavigateToHosts = { navController.navigate(Routes.HOSTS) },
+                    onNavigateToLog = { navController.navigate(Routes.LOG) }
                 )
             }
-
             composable(Routes.AD_SWITCH) {
-                AdSwitchScreen(
-                    viewModel = viewModel,
-                    onBack = { navController.popBackStack() }
-                )
+                AdSwitchScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
             }
-
             composable(Routes.FREEZE) {
-                FreezeScreen(
-                    viewModel = viewModel,
-                    onBack = { navController.popBackStack() }
-                )
+                FreezeScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
             }
-
             composable(Routes.AUTO_START) {
-                AutoStartScreen(
-                    viewModel = viewModel,
-                    onBack = { navController.popBackStack() }
-                )
+                AutoStartScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
             }
-
             composable(Routes.PERMISSION) {
-                PermissionScreen(
-                    viewModel = viewModel,
-                    onBack = { navController.popBackStack() }
-                )
+                PermissionScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
             }
-
             composable(Routes.HOSTS) {
-                HostsScreen(
-                    viewModel = viewModel,
-                    onBack = { navController.popBackStack() }
-                )
+                HostsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+            }
+            composable(Routes.LOG) {
+                LogScreen(onBack = { navController.popBackStack() })
             }
         }
     }

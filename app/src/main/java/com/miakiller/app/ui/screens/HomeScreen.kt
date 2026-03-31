@@ -30,7 +30,8 @@ fun HomeScreen(
     onNavigateToFreeze: () -> Unit,
     onNavigateToAutoStart: () -> Unit,
     onNavigateToPermission: () -> Unit,
-    onNavigateToHosts: () -> Unit
+    onNavigateToHosts: () -> Unit,
+    onNavigateToLog: () -> Unit = {}
 ) {
     val isShizukuAvailable by viewModel.isShizukuAvailable.collectAsState()
     val isShizukuGranted by viewModel.isShizukuGranted.collectAsState()
@@ -108,6 +109,14 @@ fun HomeScreen(
             subtitle = "通过Hosts文件屏蔽广告域名",
             color = HostsGreen,
             onClick = onNavigateToHosts
+        )
+
+        FeatureCard(
+            icon = Icons.Default.BugReport,
+            title = "运行日志",
+            subtitle = "查看操作日志，排查问题",
+            color = Color.Gray,
+            onClick = onNavigateToLog
         )
 
         // === 提示消息 ===

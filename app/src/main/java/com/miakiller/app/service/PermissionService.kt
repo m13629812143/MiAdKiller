@@ -7,19 +7,18 @@ import com.miakiller.app.MiAdKillerApp
 import com.miakiller.app.model.AppPermission
 import com.miakiller.app.model.OperationResult
 import com.miakiller.app.model.PermissionInfo
+import com.miakiller.app.util.AppLogger
+import com.miakiller.app.util.IconHelper
 import com.miakiller.app.util.ShizukuHelper
 
 /**
  * 权限管理服务
- *
- * 通过 Shizuku (shell权限) 管理应用权限。
- * 可以查看、授予、撤销应用的敏感权限。
  */
 object PermissionService {
 
+    private const val TAG = "PermissionService"
     private val context: Context get() = MiAdKillerApp.instance
 
-    /** 危险权限的友好名称映射 */
     private val permissionDisplayNames = mapOf(
         "android.permission.CAMERA" to "相机",
         "android.permission.RECORD_AUDIO" to "麦克风",
@@ -49,117 +48,106 @@ object PermissionService {
         "android.permission.BLUETOOTH_SCAN" to "蓝牙扫描",
     )
 
-    /**
-     * 获取应用的权限信息
-     */
     fun getAppPermissions(packageName: String): PermissionInfo? {
         val pm = context.packageManager
         return try {
-            val pkgInfo = pm.getPackageInfo(
-                packageName,
-                PackageManager.GET_PERMISSIONS
-            )
+            val pkgInfo = pm.getPackageInfo(packageName, PackageManager.GET_PERMISSIONS)
             val appInfo = pm.getApplicationInfo(packageName, 0)
-            val requestedPermissions = pkgInfo.requestedPermissions ?: emptyArray()
+            val requestedPermissions = pkgInfo.requestedPermissions ?: return null
 
             val permissions = requestedPermissions.mapNotNull { perm ->
-                val isDangerous = try {
-                    val permInfo = pm.getPermissionInfo(perm, 0)
-                    permInfo.protection == AndroidPermissionInfo.PROTECTION_DANGEROUS
+                try {
+                    val isDangerous = try {
+                        val permInfo = pm.getPermissionInfo(perm, 0)
+                        permInfo.protection == AndroidPermissionInfo.PROTECTION_DANGEROUS
+                    } catch (e: Exception) {
+                        false
+                    }
+                    if (!isDangerous) return@mapNotNull null
+
+                    val isGranted = pm.checkPermission(perm, packageName) == PackageManager.PERMISSION_GRANTED
+
+                    AppPermission(
+                        name = perm,
+                        displayName = permissionDisplayNames[perm] ?: perm.substringAfterLast("."),
+                        isGranted = isGranted,
+                        isDangerous = true
+                    )
                 } catch (e: Exception) {
-                    false
+                    null
                 }
-
-                if (!isDangerous) return@mapNotNull null
-
-                val isGranted = pm.checkPermission(perm, packageName) == PackageManager.PERMISSION_GRANTED
-
-                AppPermission(
-                    name = perm,
-                    displayName = permissionDisplayNames[perm] ?: perm.substringAfterLast("."),
-                    isGranted = isGranted,
-                    isDangerous = true
-                )
             }
 
-            PermissionInfo(
+            if (permissions.isEmpty()) return null
+
+            val info = PermissionInfo(
                 packageName = packageName,
-                appName = appInfo.loadLabel(pm).toString(),
-                icon = try { appInfo.loadIcon(pm) } catch (e: Exception) { null },
+                appName = try { appInfo.loadLabel(pm).toString() } catch (e: Exception) { packageName },
                 permissions = permissions
             )
+            info.iconBitmap = IconHelper.loadAppIcon(pm, packageName)
+            info
         } catch (e: Exception) {
+            AppLogger.w(TAG, "获取权限信息失败: $packageName", e)
             null
         }
     }
 
-    /**
-     * 获取所有有危险权限的应用
-     */
     fun getAppsWithDangerousPermissions(): List<PermissionInfo> {
+        AppLogger.i(TAG, "开始扫描应用权限")
         val pm = context.packageManager
-        val packages = pm.getInstalledPackages(PackageManager.GET_PERMISSIONS)
+        return try {
+            val packages = pm.getInstalledPackages(PackageManager.GET_PERMISSIONS)
+            AppLogger.i(TAG, "共 ${packages.size} 个包待扫描")
 
-        return packages.mapNotNull { pkg ->
-            if (pkg.packageName == context.packageName) return@mapNotNull null
-            getAppPermissions(pkg.packageName)
-        }.filter { it.permissions.isNotEmpty() }
-            .sortedByDescending { it.permissions.count { p -> p.isGranted } }
+            packages.mapNotNull { pkg ->
+                if (pkg.packageName == context.packageName) return@mapNotNull null
+                try {
+                    getAppPermissions(pkg.packageName)
+                } catch (e: Exception) {
+                    AppLogger.w(TAG, "扫描权限异常: ${pkg.packageName}", e)
+                    null
+                }
+            }.sortedByDescending {
+                it.permissions.count { p -> p.isGranted }
+            }.also {
+                AppLogger.i(TAG, "权限扫描完成, ${it.size} 个应用有危险权限")
+            }
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "权限扫描失败", e)
+            emptyList()
+        }
     }
 
-    /**
-     * 撤销应用权限
-     */
     fun revokePermission(packageName: String, permission: String): OperationResult {
-        val result = ShizukuHelper.executeCommand(
-            "pm revoke $packageName $permission"
-        )
+        AppLogger.i(TAG, "撤销权限: $packageName / $permission")
+        val result = ShizukuHelper.executeCommand("pm revoke $packageName $permission")
         return if (result.success || result.error.isEmpty()) {
-            OperationResult(true, "已撤销权限: ${permissionDisplayNames[permission] ?: permission}")
+            OperationResult(true, "已撤销: ${permissionDisplayNames[permission] ?: permission}")
         } else {
             OperationResult(false, "撤销失败: ${result.error}")
         }
     }
 
-    /**
-     * 授予应用权限
-     */
     fun grantPermission(packageName: String, permission: String): OperationResult {
-        val result = ShizukuHelper.executeCommand(
-            "pm grant $packageName $permission"
-        )
+        AppLogger.i(TAG, "授予权限: $packageName / $permission")
+        val result = ShizukuHelper.executeCommand("pm grant $packageName $permission")
         return if (result.success || result.error.isEmpty()) {
-            OperationResult(true, "已授予权限: ${permissionDisplayNames[permission] ?: permission}")
+            OperationResult(true, "已授予: ${permissionDisplayNames[permission] ?: permission}")
         } else {
             OperationResult(false, "授予失败: ${result.error}")
         }
     }
 
-    /**
-     * 批量撤销应用的所有危险权限
-     */
     fun revokeAllDangerousPermissions(packageName: String): OperationResult {
         val permInfo = getAppPermissions(packageName) ?: return OperationResult(false, "获取权限信息失败")
-
-        var success = 0
-        var fail = 0
+        var success = 0; var fail = 0
         val details = mutableListOf<String>()
-
         permInfo.permissions.filter { it.isGranted }.forEach { perm ->
             val result = revokePermission(packageName, perm.name)
-            if (result.success) {
-                success++
-                details.add("[成功] ${perm.displayName}")
-            } else {
-                fail++
-                details.add("[失败] ${perm.displayName}: ${result.message}")
-            }
+            if (result.success) { success++; details.add("[OK] ${perm.displayName}") }
+            else { fail++; details.add("[FAIL] ${perm.displayName}: ${result.message}") }
         }
-
-        return OperationResult(
-            success = fail == 0,
-            message = "撤销完成: 成功 $success, 失败 $fail",
-            details = details
-        )
+        return OperationResult(fail == 0, "撤销完成: 成功 $success, 失败 $fail", details)
     }
 }

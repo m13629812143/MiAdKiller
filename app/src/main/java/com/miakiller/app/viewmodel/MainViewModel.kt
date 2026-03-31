@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.miakiller.app.model.*
 import com.miakiller.app.service.*
+import com.miakiller.app.util.AppLogger
 import com.miakiller.app.util.ShizukuHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -12,44 +13,38 @@ import kotlinx.coroutines.launch
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    // ===== Shizuku 状态 =====
+    private val TAG = "ViewModel"
+
     val isShizukuAvailable = ShizukuHelper.isAvailable
     val isShizukuGranted = ShizukuHelper.isGranted
 
-    // ===== 广告开关 =====
     private val _adSwitches = MutableStateFlow<List<MiuiAdSwitch>>(emptyList())
     val adSwitches: StateFlow<List<MiuiAdSwitch>> = _adSwitches.asStateFlow()
 
     private val _adOperationResult = MutableStateFlow<OperationResult?>(null)
     val adOperationResult: StateFlow<OperationResult?> = _adOperationResult.asStateFlow()
 
-    // ===== 应用列表 =====
     private val _appList = MutableStateFlow<List<AppInfo>>(emptyList())
     val appList: StateFlow<List<AppInfo>> = _appList.asStateFlow()
 
     private val _frozenApps = MutableStateFlow<List<AppInfo>>(emptyList())
     val frozenApps: StateFlow<List<AppInfo>> = _frozenApps.asStateFlow()
 
-    // ===== 自启动 =====
     private val _autoStartApps = MutableStateFlow<List<AutoStartItem>>(emptyList())
     val autoStartApps: StateFlow<List<AutoStartItem>> = _autoStartApps.asStateFlow()
 
-    // ===== 权限 =====
     private val _permissionApps = MutableStateFlow<List<PermissionInfo>>(emptyList())
     val permissionApps: StateFlow<List<PermissionInfo>> = _permissionApps.asStateFlow()
 
-    // ===== Hosts =====
     private val _hostsRules = MutableStateFlow<List<HostsRule>>(emptyList())
     val hostsRules: StateFlow<List<HostsRule>> = _hostsRules.asStateFlow()
 
-    // ===== 通用状态 =====
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
-    // ===== 统计数据 =====
     data class DashboardStats(
         val totalAdSwitches: Int = 0,
         val disabledAdSwitches: Int = 0,
@@ -61,22 +56,34 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val stats: StateFlow<DashboardStats> = _stats.asStateFlow()
 
     init {
-        ShizukuHelper.init()
+        AppLogger.i(TAG, "ViewModel 初始化")
+        try {
+            ShizukuHelper.init()
+            AppLogger.i(TAG, "Shizuku 初始化完成")
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "Shizuku 初始化失败", e)
+        }
         loadHostsRules()
     }
 
     override fun onCleared() {
         super.onCleared()
-        ShizukuHelper.destroy()
+        try { ShizukuHelper.destroy() } catch (e: Exception) {
+            AppLogger.e(TAG, "Shizuku 销毁失败", e)
+        }
     }
 
     fun requestShizukuPermission() {
-        ShizukuHelper.requestPermission()
+        AppLogger.i(TAG, "请求 Shizuku 权限")
+        try {
+            ShizukuHelper.requestPermission()
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "请求 Shizuku 权限失败", e)
+            _message.value = "请求权限失败: ${e.message}"
+        }
     }
 
-    fun clearMessage() {
-        _message.value = null
-    }
+    fun clearMessage() { _message.value = null }
 
     // ===== 广告管理 =====
 
@@ -84,11 +91,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
+                AppLogger.i(TAG, "加载广告开关列表")
                 val switches = MiuiAdService.getAllAdSwitches()
-                val refreshed = MiuiAdService.refreshSwitchStates(switches)
-                _adSwitches.value = refreshed
+                AppLogger.i(TAG, "共 ${switches.size} 个广告开关")
+
+                if (ShizukuHelper.isGranted.value) {
+                    val refreshed = MiuiAdService.refreshSwitchStates(switches)
+                    _adSwitches.value = refreshed
+                    val disabled = refreshed.count { it.isDisabled }
+                    AppLogger.i(TAG, "已关闭 $disabled/${switches.size} 个")
+                } else {
+                    _adSwitches.value = switches
+                    AppLogger.w(TAG, "Shizuku未授权，无法读取开关状态")
+                }
                 updateStats()
             } catch (e: Exception) {
+                AppLogger.e(TAG, "加载广告开关失败", e)
                 _message.value = "加载广告开关失败: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -100,11 +118,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
+                AppLogger.i(TAG, "一键关闭广告开始")
                 val result = MiuiAdService.disableAllAds()
                 _adOperationResult.value = result
                 _message.value = result.message
-                loadAdSwitches() // 刷新状态
+                AppLogger.i(TAG, "一键关闭完成: ${result.message}")
+                loadAdSwitches()
             } catch (e: Exception) {
+                AppLogger.e(TAG, "一键关闭失败", e)
                 _message.value = "一键关闭失败: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -115,13 +136,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleAdSwitch(switch: MiuiAdSwitch) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                if (switch.isDisabled) {
-                    MiuiAdService.enableAdSwitch(switch)
-                } else {
-                    MiuiAdService.disableAdSwitch(switch)
-                }
-                loadAdSwitches() // 刷新
+                if (switch.isDisabled) MiuiAdService.enableAdSwitch(switch)
+                else MiuiAdService.disableAdSwitch(switch)
+                loadAdSwitches()
             } catch (e: Exception) {
+                AppLogger.e(TAG, "切换广告开关失败: ${switch.name}", e)
                 _message.value = "操作失败: ${e.message}"
             }
         }
@@ -133,10 +152,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
+                AppLogger.i(TAG, "加载应用列表")
                 _appList.value = AppFreezeService.getInstalledApps(includeSystem)
-                _frozenApps.value = AppFreezeService.getFrozenApps()
+                _frozenApps.value = _appList.value.filter { it.isFrozen }
+                AppLogger.i(TAG, "应用列表加载完成: ${_appList.value.size} 个, 冻结 ${_frozenApps.value.size} 个")
                 updateStats()
             } catch (e: Exception) {
+                AppLogger.e(TAG, "加载应用列表失败", e)
                 _message.value = "加载应用列表失败: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -151,6 +173,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _message.value = result.message
                 loadApps()
             } catch (e: Exception) {
+                AppLogger.e(TAG, "冻结失败: $packageName", e)
                 _message.value = "冻结失败: ${e.message}"
             }
         }
@@ -163,6 +186,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _message.value = result.message
                 loadApps()
             } catch (e: Exception) {
+                AppLogger.e(TAG, "解冻失败: $packageName", e)
                 _message.value = "解冻失败: ${e.message}"
             }
         }
@@ -177,6 +201,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _message.value = result.message
                 loadApps()
             } catch (e: Exception) {
+                AppLogger.e(TAG, "批量冻结失败", e)
                 _message.value = "批量冻结失败: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -190,8 +215,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
+                AppLogger.i(TAG, "加载自启动列表")
                 _autoStartApps.value = AutoStartService.getAutoStartAppsViaShell()
             } catch (e: Exception) {
+                AppLogger.e(TAG, "加载自启动列表失败", e)
                 _message.value = "加载自启动列表失败: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -202,13 +229,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleAutoStart(item: AutoStartItem) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                if (item.isBlocked) {
-                    AutoStartService.allowAutoStart(item.packageName, item.receivers)
-                } else {
-                    AutoStartService.blockAutoStart(item.packageName, item.receivers)
-                }
+                if (item.isBlocked) AutoStartService.allowAutoStart(item.packageName, item.receivers)
+                else AutoStartService.blockAutoStart(item.packageName, item.receivers)
                 loadAutoStartApps()
             } catch (e: Exception) {
+                AppLogger.e(TAG, "切换自启动失败: ${item.packageName}", e)
                 _message.value = "操作失败: ${e.message}"
             }
         }
@@ -220,8 +245,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
+                AppLogger.i(TAG, "扫描应用权限")
                 _permissionApps.value = PermissionService.getAppsWithDangerousPermissions()
             } catch (e: Exception) {
+                AppLogger.e(TAG, "权限扫描失败", e)
                 _message.value = "加载权限信息失败: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -232,14 +259,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun togglePermission(packageName: String, permission: AppPermission) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val result = if (permission.isGranted) {
+                val result = if (permission.isGranted)
                     PermissionService.revokePermission(packageName, permission.name)
-                } else {
+                else
                     PermissionService.grantPermission(packageName, permission.name)
-                }
                 _message.value = result.message
                 loadPermissionApps()
             } catch (e: Exception) {
+                AppLogger.e(TAG, "权限操作失败", e)
                 _message.value = "操作失败: ${e.message}"
             }
         }
@@ -264,12 +291,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val result = HostsService.applyHostsRules(_hostsRules.value)
                 _message.value = result.message
                 if (result.details.isNotEmpty()) {
-                    _adOperationResult.value = OperationResult(
-                        result.success, result.message, result.details
-                    )
+                    _adOperationResult.value = OperationResult(result.success, result.message, result.details)
                 }
                 updateStats()
             } catch (e: Exception) {
+                AppLogger.e(TAG, "应用Hosts规则失败", e)
                 _message.value = "应用Hosts规则失败: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -287,8 +313,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-
-    // ===== 统计 =====
 
     private fun updateStats() {
         _stats.value = DashboardStats(

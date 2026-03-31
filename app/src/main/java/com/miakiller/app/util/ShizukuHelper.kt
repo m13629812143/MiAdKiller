@@ -10,15 +10,10 @@ import java.io.InputStreamReader
 
 /**
  * Shizuku 权限管理助手
- *
- * Shizuku 是一个免Root方案，通过ADB授权获取shell级别权限。
- * 用户只需要：
- * 1. 安装 Shizuku APP
- * 2. 通过电脑ADB执行: adb shell sh /sdcard/Android/data/moe.shizuku.privileged.api/start.sh
- *    或者在开发者选项中开启无线调试后在Shizuku APP中直接启动
- * 3. 然后本APP就可以获得shell权限来执行系统级操作
  */
 object ShizukuHelper {
+
+    private const val TAG = "Shizuku"
 
     private val _isAvailable = MutableStateFlow(false)
     val isAvailable: StateFlow<Boolean> = _isAvailable.asStateFlow()
@@ -28,75 +23,92 @@ object ShizukuHelper {
 
     private val binderReceivedListener = Shizuku.OnBinderReceivedListener {
         _isAvailable.value = true
+        AppLogger.i(TAG, "Binder received, Shizuku可用")
         checkPermission()
     }
 
     private val binderDeadListener = Shizuku.OnBinderDeadListener {
         _isAvailable.value = false
         _isGranted.value = false
+        AppLogger.w(TAG, "Binder dead, Shizuku不可用")
     }
 
     private val permissionResultListener =
         Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
             if (requestCode == PERMISSION_REQUEST_CODE) {
                 _isGranted.value = grantResult == PackageManager.PERMISSION_GRANTED
+                AppLogger.i(TAG, "权限回调: ${if (_isGranted.value) "已授予" else "被拒绝"}")
             }
         }
 
     const val PERMISSION_REQUEST_CODE = 1001
 
     fun init() {
-        Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
-        Shizuku.addBinderDeadListener(binderDeadListener)
-        Shizuku.addRequestPermissionResultListener(permissionResultListener)
+        AppLogger.i(TAG, "初始化 Shizuku 监听器")
+        try {
+            Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
+            Shizuku.addBinderDeadListener(binderDeadListener)
+            Shizuku.addRequestPermissionResultListener(permissionResultListener)
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "初始化失败", e)
+        }
     }
 
     fun destroy() {
-        Shizuku.removeBinderReceivedListener(binderReceivedListener)
-        Shizuku.removeBinderDeadListener(binderDeadListener)
-        Shizuku.removeRequestPermissionResultListener(permissionResultListener)
+        try {
+            Shizuku.removeBinderReceivedListener(binderReceivedListener)
+            Shizuku.removeBinderDeadListener(binderDeadListener)
+            Shizuku.removeRequestPermissionResultListener(permissionResultListener)
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "销毁失败", e)
+        }
     }
 
     fun checkPermission() {
         try {
             if (Shizuku.isPreV11()) {
                 _isGranted.value = false
+                AppLogger.w(TAG, "Shizuku版本过低 (pre-v11)")
                 return
             }
             _isGranted.value = Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+            AppLogger.i(TAG, "权限检查: ${if (_isGranted.value) "已授予" else "未授予"}")
         } catch (e: Exception) {
             _isGranted.value = false
+            AppLogger.e(TAG, "权限检查异常", e)
         }
     }
 
     fun requestPermission() {
         try {
-            if (Shizuku.isPreV11()) return
+            if (Shizuku.isPreV11()) {
+                AppLogger.w(TAG, "无法请求权限: Shizuku版本过低")
+                return
+            }
             if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+                AppLogger.i(TAG, "请求 Shizuku 权限...")
                 Shizuku.requestPermission(PERMISSION_REQUEST_CODE)
             } else {
                 _isGranted.value = true
+                AppLogger.i(TAG, "权限已存在，无需请求")
             }
         } catch (e: Exception) {
             _isGranted.value = false
+            AppLogger.e(TAG, "请求权限失败", e)
         }
     }
 
     /**
      * 通过Shizuku执行Shell命令
-     * 这是核心方法 - 获取shell权限后可以执行各种系统级操作
-     *
-     * 使用 Shizuku.transactRemote 通过 binder 执行 shell 命令，
-     * 命令以 ADB shell (uid 2000) 的身份运行。
      */
     fun executeCommand(command: String): CommandResult {
-        return try {
-            if (!_isGranted.value) {
-                return CommandResult(false, "", "Shizuku权限未授予")
-            }
+        if (!_isGranted.value) {
+            AppLogger.w(TAG, "命令跳过(未授权): $command")
+            return CommandResult(false, "", "Shizuku权限未授予")
+        }
 
-            // 使用 Shizuku 的 RemoteProcess API
-            // 通过反射调用 Shizuku.newProcess，因为不同版本 API 签名可能不同
+        return try {
+            // 方案1: 通过反射调用 Shizuku.newProcess
             val shizukuClass = Shizuku::class.java
             val method = shizukuClass.getDeclaredMethod(
                 "newProcess",
@@ -117,21 +129,17 @@ object ShizukuHelper {
             val error = BufferedReader(InputStreamReader(process.errorStream)).readText()
             val exitCode = process.waitFor()
 
-            CommandResult(
-                success = exitCode == 0,
-                output = output.trim(),
-                error = error.trim()
-            )
+            val result = CommandResult(exitCode == 0, output.trim(), error.trim())
+            if (!result.success && result.error.isNotEmpty()) {
+                AppLogger.d(TAG, "CMD[$exitCode]: $command -> ${result.error.take(100)}")
+            }
+            result
         } catch (e: Exception) {
-            // Fallback: 尝试通过 IShellService 方式
+            AppLogger.d(TAG, "Shizuku.newProcess失败，尝试fallback: ${e.message}")
             executeCommandFallback(command)
         }
     }
 
-    /**
-     * Fallback: 通过 ProcessBuilder 执行命令
-     * 当 Shizuku remoteProcess 不可用时的备选方案
-     */
     private fun executeCommandFallback(command: String): CommandResult {
         return try {
             val processBuilder = ProcessBuilder("sh", "-c", command)
@@ -142,19 +150,13 @@ object ShizukuHelper {
             val error = BufferedReader(InputStreamReader(process.errorStream)).readText()
             val exitCode = process.waitFor()
 
-            CommandResult(
-                success = exitCode == 0,
-                output = output.trim(),
-                error = error.trim()
-            )
+            CommandResult(exitCode == 0, output.trim(), error.trim())
         } catch (e: Exception) {
+            AppLogger.e(TAG, "Fallback也失败: $command", e)
             CommandResult(false, "", e.message ?: "执行命令失败")
         }
     }
 
-    /**
-     * 批量执行Shell命令
-     */
     fun executeCommands(commands: List<String>): List<CommandResult> {
         return commands.map { executeCommand(it) }
     }
