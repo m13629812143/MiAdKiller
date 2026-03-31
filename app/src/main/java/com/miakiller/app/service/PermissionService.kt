@@ -70,7 +70,7 @@ object PermissionService {
                     false
                 }
 
-                if (!isDangerous) return@mapIndexedNotNull null
+                if (!isDangerous) return@mapNotNull null
 
                 val isGranted = pm.checkPermission(perm, packageName) == PackageManager.PERMISSION_GRANTED
 
