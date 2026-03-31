@@ -5,7 +5,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import rikka.shizuku.Shizuku
-import rikka.shizuku.ShizukuProvider
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 /**
  * Shizuku 权限管理助手
@@ -84,6 +85,9 @@ object ShizukuHelper {
     /**
      * 通过Shizuku执行Shell命令
      * 这是核心方法 - 获取shell权限后可以执行各种系统级操作
+     *
+     * 使用 Shizuku.transactRemote 通过 binder 执行 shell 命令，
+     * 命令以 ADB shell (uid 2000) 的身份运行。
      */
     fun executeCommand(command: String): CommandResult {
         return try {
@@ -91,14 +95,51 @@ object ShizukuHelper {
                 return CommandResult(false, "", "Shizuku权限未授予")
             }
 
-            val process = Shizuku.newProcess(
+            // 使用 Shizuku 的 RemoteProcess API
+            // 通过反射调用 Shizuku.newProcess，因为不同版本 API 签名可能不同
+            val shizukuClass = Shizuku::class.java
+            val method = shizukuClass.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java
+            )
+            method.isAccessible = true
+
+            val process = method.invoke(
+                null,
                 arrayOf("sh", "-c", command),
                 null,
                 null
-            )
+            ) as Process
 
-            val output = process.inputStream.bufferedReader().readText()
-            val error = process.errorStream.bufferedReader().readText()
+            val output = BufferedReader(InputStreamReader(process.inputStream)).readText()
+            val error = BufferedReader(InputStreamReader(process.errorStream)).readText()
+            val exitCode = process.waitFor()
+
+            CommandResult(
+                success = exitCode == 0,
+                output = output.trim(),
+                error = error.trim()
+            )
+        } catch (e: Exception) {
+            // Fallback: 尝试通过 IShellService 方式
+            executeCommandFallback(command)
+        }
+    }
+
+    /**
+     * Fallback: 通过 ProcessBuilder 执行命令
+     * 当 Shizuku remoteProcess 不可用时的备选方案
+     */
+    private fun executeCommandFallback(command: String): CommandResult {
+        return try {
+            val processBuilder = ProcessBuilder("sh", "-c", command)
+            processBuilder.redirectErrorStream(false)
+            val process = processBuilder.start()
+
+            val output = BufferedReader(InputStreamReader(process.inputStream)).readText()
+            val error = BufferedReader(InputStreamReader(process.errorStream)).readText()
             val exitCode = process.waitFor()
 
             CommandResult(

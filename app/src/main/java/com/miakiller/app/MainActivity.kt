@@ -25,7 +25,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MiAdKillerTheme {
-                MiAdKillerApp()
+                MiAdKillerNavHost()
             }
         }
     }
@@ -44,7 +44,7 @@ object Routes {
 }
 
 @Composable
-fun MiAdKillerApp() {
+fun MiAdKillerNavHost() {
     val navController = rememberNavController()
     val viewModel: MainViewModel = viewModel()
 

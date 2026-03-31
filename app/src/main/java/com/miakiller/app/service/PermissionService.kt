@@ -61,9 +61,8 @@ object PermissionService {
             )
             val appInfo = pm.getApplicationInfo(packageName, 0)
             val requestedPermissions = pkgInfo.requestedPermissions ?: emptyArray()
-            val requestedPermissionsFlags = pkgInfo.requestedPermissionsFlags ?: IntArray(0)
 
-            val permissions = requestedPermissions.mapIndexedNotNull { index, perm ->
+            val permissions = requestedPermissions.mapNotNull { perm ->
                 val isDangerous = try {
                     val permInfo = pm.getPermissionInfo(perm, 0)
                     permInfo.protection == AndroidPermissionInfo.PROTECTION_DANGEROUS
@@ -73,13 +72,7 @@ object PermissionService {
 
                 if (!isDangerous) return@mapIndexedNotNull null
 
-                val isGranted = if (index < requestedPermissionsFlags.size) {
-                    (requestedPermissionsFlags[index] and
-                            PackageManager.FLAG_PERMISSION_GRANTED_BY_DEFAULT) != 0 ||
-                    pm.checkPermission(perm, packageName) == PackageManager.PERMISSION_GRANTED
-                } else {
-                    pm.checkPermission(perm, packageName) == PackageManager.PERMISSION_GRANTED
-                }
+                val isGranted = pm.checkPermission(perm, packageName) == PackageManager.PERMISSION_GRANTED
 
                 AppPermission(
                     name = perm,
