@@ -197,10 +197,11 @@ private fun StatusCard(
             if (!isAvailable) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "使用说明:\n" +
-                            "1. 从应用商店安装 Shizuku\n" +
-                            "2. 打开 Shizuku，通过无线调试启动\n" +
-                            "3. 或连接电脑执行: adb shell sh /sdcard/Android/data/moe.shizuku.privileged.api/start.sh",
+                    text = "使用说明 (澎湃OS3):\n" +
+                            "1. 从应用商店搜索安装 Shizuku\n" +
+                            "2. 设置 > 更多设置 > 开发者选项 > 开启「无线调试」\n" +
+                            "3. 打开 Shizuku，点击「通过无线调试启动」\n" +
+                            "4. 返回本APP即可使用所有功能",
                     color = Color.White.copy(alpha = 0.9f),
                     fontSize = 12.sp,
                     lineHeight = 18.sp

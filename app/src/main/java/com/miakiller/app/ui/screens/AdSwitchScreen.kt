@@ -37,7 +37,7 @@ fun AdSwitchScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("MIUI广告开关") },
+                title = { Text("澎湃OS广告开关") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, "返回")

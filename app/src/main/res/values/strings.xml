@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MiAdKiller</string>
-    <string name="app_description">小米手机广告管理工具</string>
+    <string name="app_description">小米15澎湃OS3广告管理工具</string>
 
     <!-- 导航 -->
     <string name="nav_home">首页</string>
@@ -22,4 +22,7 @@
     <string name="action_freeze">冻结</string>
     <string name="action_unfreeze">解冻</string>
     <string name="action_apply_hosts">应用Hosts规则</string>
+
+    <!-- 设备信息 -->
+    <string name="device_info">小米15 · 澎湃OS3</string>
 </resources>

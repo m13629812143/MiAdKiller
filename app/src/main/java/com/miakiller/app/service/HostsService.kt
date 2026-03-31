@@ -16,52 +16,73 @@ import com.miakiller.app.util.ShizukuHelper
 object HostsService {
 
     /**
-     * 小米/MIUI 相关广告域名列表
+     * 小米/澎湃OS3 广告域名列表
+     *
+     * 适配小米15 澎湃OS3 (3.0.7.0.WOCCNXM)
      */
     fun getMiuiAdDomains(): List<HostsRule> {
         return listOf(
-            // 小米广告核心域名
-            HostsRule("ad.xiaomi.com", "小米广告主域名", "小米广告"),
-            HostsRule("ad1.xiaomi.com", "小米广告服务器1", "小米广告"),
-            HostsRule("ad.mi.com", "小米广告", "小米广告"),
-            HostsRule("adi.xiaomi.com", "小米广告接口", "小米广告"),
-            HostsRule("adv.sec.miui.com", "安全中心广告", "小米广告"),
+            // === 小米广告核心域名 ===
+            HostsRule("ad.xiaomi.com", "小米广告主域名", "广告核心"),
+            HostsRule("ad1.xiaomi.com", "小米广告服务器1", "广告核心"),
+            HostsRule("ad.mi.com", "小米广告(mi.com)", "广告核心"),
+            HostsRule("adi.xiaomi.com", "小米广告接口", "广告核心"),
+            HostsRule("adv.sec.miui.com", "手机管家广告", "广告核心"),
+            HostsRule("api.ad.xiaomi.com", "广告API入口", "广告核心"),
+            HostsRule("e.ad.xiaomi.com", "广告事件上报", "广告核心"),
+            HostsRule("cdn.ad.xiaomi.com", "广告素材CDN", "广告核心"),
+            HostsRule("new.api.ad.xiaomi.com", "新版广告API(澎湃OS3)", "广告核心"),
 
-            // MSA (MIUI System Ads)
-            HostsRule("sdkconfig.ad.xiaomi.com", "MSA广告SDK配置", "MSA"),
-            HostsRule("globalapi.ad.xiaomi.com", "MSA全局广告API", "MSA"),
-            HostsRule("cnbj-maacs.ad.xiaomi.com", "MSA广告投放", "MSA"),
+            // === MSA/MiAd 广告引擎 ===
+            HostsRule("sdkconfig.ad.xiaomi.com", "MSA SDK配置下发", "MSA引擎"),
+            HostsRule("globalapi.ad.xiaomi.com", "MSA全局广告API", "MSA引擎"),
+            HostsRule("cnbj-maacs.ad.xiaomi.com", "MSA广告投放(北京)", "MSA引擎"),
+            HostsRule("cnsz-maacs.ad.xiaomi.com", "MSA广告投放(深圳)", "MSA引擎"),
+            HostsRule("cnsh-maacs.ad.xiaomi.com", "MSA广告投放(上海)", "MSA引擎"),
+            HostsRule("mis.token.xiaomi.com", "MSA广告Token", "MSA引擎"),
 
-            // 小米数据追踪
-            HostsRule("tracking.miui.com", "MIUI追踪", "追踪"),
-            HostsRule("tracking.intl.miui.com", "MIUI国际追踪", "追踪"),
-            HostsRule("t.browser.miui.com", "浏览器追踪", "追踪"),
-            HostsRule("sa.api.intl.miui.com", "数据分析API", "追踪"),
-            HostsRule("data.mistat.xiaomi.com", "小米统计数据", "追踪"),
-            HostsRule("data.mistat.intl.xiaomi.com", "国际统计数据", "追踪"),
-            HostsRule("o2o.api.xiaomi.com", "O2O广告", "追踪"),
+            // === 数据追踪/分析 ===
+            HostsRule("tracking.miui.com", "MIUI/HyperOS追踪", "数据追踪"),
+            HostsRule("tracking.intl.miui.com", "国际版追踪", "数据追踪"),
+            HostsRule("t.browser.miui.com", "浏览器追踪", "数据追踪"),
+            HostsRule("sa.api.intl.miui.com", "数据分析API", "数据追踪"),
+            HostsRule("data.mistat.xiaomi.com", "小米统计(国内)", "数据追踪"),
+            HostsRule("data.mistat.intl.xiaomi.com", "小米统计(国际)", "数据追踪"),
+            HostsRule("o2o.api.xiaomi.com", "O2O行为追踪", "数据追踪"),
+            HostsRule("huiyan.xiaomi.com", "慧眼用户行为分析", "数据追踪"),
+            HostsRule("logupdate.avlyun.sec.miui.com", "安全日志上传", "数据追踪"),
+            HostsRule("abtest.mistat.xiaomi.com", "A/B测试数据", "数据追踪"),
+            HostsRule("sdk.account.xiaomi.com", "账号SDK追踪", "数据追踪"),
 
-            // 小米推送广告
-            HostsRule("api.ad.xiaomi.com", "广告API", "推送广告"),
-            HostsRule("mis.token.xiaomi.com", "广告Token", "推送广告"),
-            HostsRule("api.zhuti.xiaomi.com", "主题商店广告", "推送广告"),
-            HostsRule("cdn.ad.xiaomi.com", "广告CDN", "推送广告"),
+            // === 推荐/信息流 ===
+            HostsRule("api.zhuti.xiaomi.com", "主题商店推荐API", "推荐内容"),
+            HostsRule("api.market.xiaomi.com", "应用商店推荐API", "推荐内容"),
+            HostsRule("resolver.msg.xiaomi.net", "消息推送服务", "推荐内容"),
+            HostsRule("feedapi.aikuaidi.cn", "快递/内容信息流", "推荐内容"),
+            HostsRule("navi.mi.com", "小米内容导航", "推荐内容"),
+            HostsRule("rp.hpplay.cn", "乐播推荐", "推荐内容"),
 
-            // 小米内容/信息流
-            HostsRule("api.market.xiaomi.com", "应用商店推荐API", "内容推荐"),
-            HostsRule("huiyan.xiaomi.com", "慧眼数据收集", "内容推荐"),
-            HostsRule("resolver.msg.xiaomi.net", "消息推送", "内容推荐"),
+            // === 游戏/娱乐 ===
+            HostsRule("migc.xiaomi.com", "游戏中心广告", "游戏广告"),
+            HostsRule("g.xiaomi.com", "游戏推广", "游戏广告"),
+            HostsRule("gameapi.xiaomi.com", "游戏API广告", "游戏广告"),
 
-            // 通用广告域名
-            HostsRule("e.ad.xiaomi.com", "广告事件上报", "通用广告"),
-            HostsRule("migc.xiaomi.com", "游戏中心广告", "通用广告"),
-            HostsRule("dvr.mi.com", "设备注册追踪", "通用广告"),
+            // === 浏览器 ===
+            HostsRule("t.browser.xiaomi.com", "浏览器遥测", "浏览器"),
+            HostsRule("hot.browser.intl.miui.com", "浏览器热搜", "浏览器"),
+            HostsRule("feed.browser.miui.com", "浏览器信息流", "浏览器"),
 
-            // 第三方广告SDK (常见于小米预装应用)
-            HostsRule("sdk.open.talk.getui.com", "个推SDK", "第三方SDK"),
-            HostsRule("s.union.mi.com", "小米联盟广告", "第三方SDK"),
-            HostsRule("ad.doubleclick.net", "Google广告", "第三方SDK"),
-            HostsRule("pagead2.googlesyndication.com", "Google广告联盟", "第三方SDK"),
+            // === 设备标识 ===
+            HostsRule("dvr.mi.com", "设备注册/标识追踪", "设备标识"),
+            HostsRule("register.xmpush.xiaomi.com", "推送服务注册", "设备标识"),
+
+            // === 小米联盟/第三方 ===
+            HostsRule("s.union.mi.com", "小米广告联盟", "第三方"),
+            HostsRule("sdk.open.talk.getui.com", "个推SDK(广告推送)", "第三方"),
+            HostsRule("sdk.open.phone.igexin.com", "个信SDK", "第三方"),
+            HostsRule("ad.doubleclick.net", "Google DoubleClick", "第三方"),
+            HostsRule("pagead2.googlesyndication.com", "Google Syndication", "第三方"),
+            HostsRule("adservice.google.com", "Google广告服务", "第三方"),
         )
     }
 

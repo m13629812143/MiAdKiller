@@ -166,27 +166,51 @@ object AppFreezeService {
     }
 
     /**
-     * 获取小米预装应用列表(建议冻结)
+     * 获取小米15 澎湃OS3 预装应用列表(建议冻结)
+     *
+     * 分为三类:
+     * 1. 广告/追踪类 - 强烈建议冻结
+     * 2. 臃肿应用 - 推荐冻结(如不使用)
+     * 3. 可选冻结 - 看个人需求
      */
     fun getSuggestedFreezeApps(): List<String> {
         return listOf(
-            "com.miui.systemAdSolution",    // MSA广告服务
-            "com.miui.analytics",            // 小米分析
-            "com.miui.hybrid",               // 快应用
-            "com.miui.hybrid.accessory",     // 快应用关联
-            "com.miui.msa.global",           // 全球MSA
-            "com.miui.contentcatcher",       // 内容抓取
-            "com.miui.yellowpage",           // 黄页
-            "com.miui.newhome",              // 内容中心
-            "com.miui.personalassistant",    // 智能助理(负一屏)
-            "com.miui.virtualsim",           // 虚拟SIM
-            "com.xiaomi.gamecenter.sdk.service", // 游戏中心SDK
-            "com.xiaomi.payment",            // 小米支付
-            "com.mipay.wallet",              // 小米钱包
-            "com.miui.player",               // 小米音乐
-            "com.miui.video",                // 小米视频
-            "com.miui.bugreport",            // Bug报告
-            "com.miui.mishare.connectivity",  // 小米互传
+            // === 广告/追踪类 (强烈建议冻结) ===
+            "com.miui.systemAdSolution",        // MSA广告引擎
+            "com.miui.analytics",                // 小米数据分析
+            "com.xiaomi.ab",                     // A/B测试框架(广告实验用)
+            "com.miui.contentcatcher",           // 内容抓取(推荐数据源)
+            "com.miui.msa.global",               // 海外MSA服务
+
+            // === 臃肿应用 (推荐冻结) ===
+            "com.miui.hybrid",                   // 快应用引擎
+            "com.miui.hybrid.accessory",         // 快应用关联服务
+            "com.miui.newhome",                  // 内容中心(信息流)
+            "com.miui.yellowpage",               // 黄页
+            "com.miui.personalassistant",        // 智能助理(负一屏)
+            "com.miui.bugreport",                // Bug报告
+            "com.xiaomi.gamecenter.sdk.service",  // 游戏中心SDK
+            "com.xiaomi.gamecenter",             // 游戏中心
+            "com.miui.virtualsim",               // 虚拟SIM卡
+            "com.miui.cleanmaster",              // 垃圾清理大师(广告多)
+
+            // === 小米金融/支付 (如不使用建议冻结) ===
+            "com.xiaomi.payment",                // 小米支付
+            "com.mipay.wallet",                  // 小米钱包
+
+            // === 小米内容应用 (如不使用建议冻结) ===
+            "com.miui.player",                   // 小米音乐(广告多)
+            "com.miui.video",                    // 小米视频(广告多)
+            "com.miui.compass",                  // 指南针
+            "com.miui.fm",                       // FM收音机
+            "com.miui.notes",                    // 小米笔记
+            "com.miui.voiceassist",              // 小爱同学(如不使用)
+
+            // === 服务类 (看个人需求) ===
+            "com.miui.mishare.connectivity",     // 小米互传
+            "com.xiaomi.mi_connect_service",     // 小米互联服务
+            "com.miui.huanji",                   // 小米换机
+            "com.xiaomi.shop",                   // 小米商城
         )
     }
 }
